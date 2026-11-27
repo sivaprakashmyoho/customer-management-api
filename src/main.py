@@ -2,18 +2,16 @@ import os
 import secrets
 
 from dotenv import load_dotenv
-from fastapi.security import APIKeyHeader
-
-
-from src.schemas import CustomerCreate, CustomerOut, CustomerUpdate
 
 from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import APIKeyHeader
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from src.database import get_db
 from src.models import Customer
-from src.schemas import CustomerCreate, CustomerOut
+from src.schemas import CustomerCreate, CustomerOut, CustomerUpdate
 
 load_dotenv()
 
@@ -54,17 +52,17 @@ def health_check(db: Session = Depends(get_db)):
 
     try:
         db.execute(text("SELECT 1"))
+
         return {
             "status": "healthy",
             "database": "connected"
         }
+
     except Exception:
         raise HTTPException(
             status_code=503,
             detail="Database connection failed"
         )
-    api_key: str = Depends(verify_api_key)
-
 
 # Create a customer
 
@@ -103,6 +101,28 @@ def create_customer(
 
 # Get all customers
 # Get customer by ID
+@app.get("/customers", response_model=list[CustomerOut])
+def get_customers(
+    page: int = 1,
+    per_page: int = 10,
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
+):
+    if page < 1 or per_page < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Page and per_page must be greater than 0"
+        )
+
+    customers = (
+        db.query(Customer)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+        .all()
+    )
+
+    return customers
+
 @app.get("/customers/{customer_id}", response_model=CustomerOut)
 def get_customer(
     customer_id: int,
@@ -118,18 +138,8 @@ def get_customer(
             status_code=404,
             detail="Customer not found"
         )
-    api_key: str = Depends(verify_api_key)
 
     return customer
-
-# Get all customers
-@app.get("/customers", response_model=list[CustomerOut])
-def get_customers(
-    db: Session = Depends(get_db),
-    api_key: str = Depends(verify_api_key)
-):
-    customers = db.query(Customer).all()
-    return customers
 # Update customer
 
 @app.put("/customers/{customer_id}", response_model=CustomerOut)
