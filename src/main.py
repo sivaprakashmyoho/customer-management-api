@@ -67,6 +67,7 @@ def health_check(db: Session = Depends(get_db)):
 
 
 # Create a customer
+
 @app.post(
     "/customers",
     response_model=CustomerOut,
@@ -74,7 +75,8 @@ def health_check(db: Session = Depends(get_db)):
 )
 def create_customer(
     customer: CustomerCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
 ):
     new_customer = Customer(
         name=customer.name,
@@ -94,9 +96,9 @@ def create_customer(
             status_code=409,
             detail="Email already exists"
         )
-    api_key: str = Depends(verify_api_key)
 
     return new_customer
+
 
 
 # Get all customers
@@ -129,11 +131,13 @@ def get_customers(
     customers = db.query(Customer).all()
     return customers
 # Update customer
+
 @app.put("/customers/{customer_id}", response_model=CustomerOut)
 def update_customer(
     customer_id: int,
     customer_data: CustomerUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
 ):
     customer = db.query(Customer).filter(
         Customer.id == customer_id
@@ -159,14 +163,15 @@ def update_customer(
             status_code=409,
             detail="Email already exists"
         )
-    api_key: str = Depends(verify_api_key)
 
     return customer
+
 
 @app.delete("/customers/{customer_id}")
 def delete_customer(
     customer_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    api_key: str = Depends(verify_api_key)
 ):
     customer = db.query(Customer).filter(
         Customer.id == customer_id
@@ -180,6 +185,5 @@ def delete_customer(
 
     db.delete(customer)
     db.commit()
-    api_key: str = Depends(verify_api_key)
 
     return {"message": "Customer deleted successfully"}
